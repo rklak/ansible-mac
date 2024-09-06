@@ -1,0 +1,6 @@
+roles:
+  - name: ctorgalson.oh-my-zsh
+  - name: ctorgalson.nerdfonts
+  - name: brianhartsock.nvm
+collections:
+  - name: community.general

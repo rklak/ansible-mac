@@ -1,0 +1,145 @@
+- hosts: localhost
+  connection: local
+  become: True
+  become_user: root
+  become_method: sudo  
+
+  tasks:
+    - name: Run ansible-role-oh-my-zsh.
+      include_role:
+        name: "ctorgalson.ansible-role-oh-my-zsh"
+      vars:
+        omz_user: "{{ item }}"
+        omz_zshrc_create: true
+      with_items: "{{ users }}"
+
+    - name: Brew> Ensure taps are added
+      homebrew_tap:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - jesseduffield/lazydocker
+        - knqyf263/pet
+        - jesseduffield/lazygit
+        - hashicorp/tap
+      become: false
+
+    - name: Brew> Install Formula
+      community.general.homebrew:
+        name: 
+          - nikitabobko/tap/aerospace # this should be cask
+          - flameshot # this should be cask
+          - raycast # this should be cask
+          - copyq
+            # xattr -rd com.apple.quarantine /Applications/CopyQ.app
+            # codesign -f --deep -s - /Applications/CopyQ.app
+          - 1password-cli
+          - bat
+          - blueutil #bluetooth
+          - btop
+          - chezmoi  
+          - entr
+          - eza
+          - jq
+          - ripgrep
+          - lazydocker
+          - pet
+          - git-delta
+          - gpg
+          - glow
+          - lazygit
+          - jless
+          - pgcli
+          - xsv
+          - neovim
+          - ouch
+          - tmux
+          - tmuxinator
+          - pinentry-mac # for storing gpg keys in keychain
+          - httpie
+          - diff-so-fancy
+          - stats # menu bar with stats
+          - tree
+          - tlrc
+          - wezterm
+          - zsh-autosuggestions
+          - hashicorp/tap/terraform
+        state: present
+      become: false
+   
+    - name: mkdir ~/.tmux/plugins
+      become: false
+      file:
+        path: "{{ user_home }}/.tmux/plugins"
+        state: directory
+
+    - name: Clone the tpm repository
+      become: false
+      git:
+        repo: "https://github.com/tmux-plugins/tpm"
+        dest: "{{ user_home }}/.tmux/plugins/tpm"
+
+    - name: Check if GPG key exists
+      become: false
+      command: "gpg --list-secret-keys {{ gpg_id }}"
+      register: gpg_key_check
+      changed_when: gpg_key_check.rc != 0
+      failed_when: false
+
+    - name: Import GPG
+      become: false
+      ansible.builtin.shell: "op document get {{ op_gpg_id }} | gpg --import"
+      when: gpg_key_check.rc != 0
+
+    - name: Set git config gpg sign
+      become: false
+      git_config:
+        name: commit.gpgsign
+        scope: global
+        value: true
+
+    - name: Set git config gpg key
+      become: false
+      git_config:
+        name: user.signingkey
+        scope: global
+        value: "{{ gpg_id }}"
+
+    - name: Clone tmux-scripts
+      git:
+        repo: "{{ scripts_repo }}"
+        dest: "{{ scripts_path }}"
+        clone: yes
+        update: yes
+
+    - name: Copy dotfiles
+      ansible.builtin.command:
+        cmd: "chezmoi init --guess-repo-url=false --apply {{ chezmoi_repo }}"
+        chdir: "{{ user_home }}"
+        creates: "{{ chezmoi_source_dir  }}"
+
+    - name: Install nvm
+      include_role:
+        name: "brianhartsock.nvm"
+
+    - name: Create symbolic link python
+      tags: now
+      file:
+        src: /opt/homebrew/bin/python3
+        dest: /usr/bin/python
+        state: link
+        follow: false
+        become: true
+
+  vars:
+    user: "radoslaw.klak"
+    user_home: "/Users/Radoslaw.Klak"
+    scripts_path: "{{ user_home }}/scripts"
+    scripts_repo: "https://github.com/rklak/tmux-scripts.git"
+    chezmoi_repo: "https://github.com/rklak/dotfiles.git"
+    chezmoi_source_dir: "{{ user_home }}/.local/share/chezmoi"
+    op_gpg_id: "nezivdzc5rcrgehnxm3cjjsx4q"
+    gpg_id: "C9C883263380855C"
+    omz_install_zsh: true
+    users:
+      - name: "{{ user }}"
