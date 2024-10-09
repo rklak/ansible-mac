@@ -5,15 +5,17 @@
   become_method: sudo  
 
   tasks:
-    - name: Run ansible-role-oh-my-zsh.
-      include_role:
-        name: "ctorgalson.ansible-role-oh-my-zsh"
-      vars:
-        omz_user: "{{ item }}"
-        omz_zshrc_create: true
-      with_items: "{{ users }}"
+    - name: Download Oh My Zsh installation script
+      get_url:
+        url: https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh
+        dest: /tmp/install_ohmyzsh.sh
 
-    - name: Brew> Ensure taps are added
+    - name: Run Oh My Zsh installation script
+      command: sh /tmp/install_ohmyzsh.sh --unattended
+      register: ohmyzsh_result
+      failed_when: "'FAILED' in ohmyzsh_result.stderr"
+    
+    - name: Brew Ensure taps are added
       homebrew_tap:
         name: "{{ item }}"
         state: present
@@ -22,17 +24,28 @@
         - knqyf263/pet
         - jesseduffield/lazygit
         - hashicorp/tap
+        - homebrew/cask-versions
       become: false
 
-    - name: Brew> Install Formula
-      community.general.homebrew:
-        name: 
-          - nikitabobko/tap/aerospace # this should be cask
-          - flameshot # this should be cask
-          - raycast # this should be cask
-          - copyq
+#    - name: Install cask
+#      community.general.homebrew_cask:
+#        name: "{{ item }}"
+#        state: present
+#      loop:
+#        - flameshot
+#        - raycast
+#        - nikitabobko/tap/aerospace
+#        - copyq
             # xattr -rd com.apple.quarantine /Applications/CopyQ.app
             # codesign -f --deep -s - /Applications/CopyQ.app
+#        - firefox@developer-edition
+
+    - name: Brew Install Formula
+      community.general.homebrew:
+        name: 
+          # - nikitabobko/tap/aerospace # this should be cask
+          # - flameshot # this should be cask
+          # - raycast # this should be cask
           - 1password-cli
           - bat
           - blueutil #bluetooth
@@ -41,6 +54,7 @@
           - entr
           - eza
           - jq
+          - gh
           - ripgrep
           - lazydocker
           - pet
@@ -59,6 +73,7 @@
           - httpie
           - diff-so-fancy
           - stats # menu bar with stats
+          - itsycal
           - tree
           - tlrc
           - wezterm
@@ -106,6 +121,8 @@
         value: "{{ gpg_id }}"
 
     - name: Clone tmux-scripts
+      tags: now
+      become: false
       git:
         repo: "{{ scripts_repo }}"
         dest: "{{ scripts_path }}"
@@ -113,23 +130,18 @@
         update: yes
 
     - name: Copy dotfiles
+      become: false
       ansible.builtin.command:
         cmd: "chezmoi init --guess-repo-url=false --apply {{ chezmoi_repo }}"
         chdir: "{{ user_home }}"
-        creates: "{{ chezmoi_source_dir  }}"
-
-    - name: Install nvm
-      include_role:
-        name: "brianhartsock.nvm"
+        creates: "{{ chezmoi_source_dir }}"
 
     - name: Create symbolic link python
-      tags: now
       file:
         src: /opt/homebrew/bin/python3
         dest: /usr/bin/python
         state: link
         follow: false
-        become: true
 
   vars:
     user: "radoslaw.klak"
