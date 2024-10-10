@@ -1,6 +1,9 @@
 # ansible-mac
 Setup a new machine on Mac
 
+## Disable Natural scrolling
+Open Settings > Trackpad > Scroll & Zoom
+
 ## Vivaldi browser
 Download vivaldi from https://vivaldi.com/pl/download/
 
