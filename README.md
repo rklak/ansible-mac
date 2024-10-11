@@ -66,4 +66,10 @@ git config --global user.email "email"
 git config --global user.name "name"
 ssh-add --apple-use-keychain ~/.ssh/id_rklak
 ```
+
+## Alow notification for wezterm
+
+Check in **System settings > notification**: allow notification when mirroring or sharing the display
+and find WezTerm app and allow notification
+
 ## Done
